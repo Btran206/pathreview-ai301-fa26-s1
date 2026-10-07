@@ -172,18 +172,20 @@ class SkillExtractor:
 
         # JavaScript/TypeScript detection
         js_evidence = []
-        if ".js" in str(filename or "").lower():
-            js_evidence.append("JavaScript file extension (.js)")
-        if ".ts" in str(filename or "").lower():
-            js_evidence.append("TypeScript file extension (.ts)")
-        if re.search(r"\b(import|require)\s+", text):
+        filename_lower = str(filename or "").lower()
+        is_ts_file = any(ext in filename_lower for ext in (".ts", ".tsx"))
+        if any(ext in filename_lower for ext in (".js", ".jsx", ".mjs", ".cjs")):
+            js_evidence.append("JavaScript file extension (.js/.jsx/.mjs/.cjs)")
+        if is_ts_file:
+            js_evidence.append("TypeScript file extension (.ts/.tsx)")
+        if re.search(r"\b(import|require)\b", text):
             js_evidence.append("CommonJS or ES6 imports")
         if "package.json" in text_lower:
             js_evidence.append("package.json found")
 
         if js_evidence:
             confidence = min(0.95, 0.6 + len(js_evidence) * 0.1)
-            lang = "TypeScript" if ".ts" in str(filename or "").lower() else "JavaScript"
+            lang = "TypeScript" if is_ts_file else "JavaScript"
             skills_dict[lang] = SkillDetection(
                 name=lang,
                 category="Language",
@@ -203,7 +205,6 @@ class SkillExtractor:
             ".swift": ("Swift", 0.95),
         }
 
-        filename_lower = str(filename or "").lower()
         for ext, (lang, confidence) in extension_langs.items():
             if ext in filename_lower:
                 skills_dict[lang] = SkillDetection(

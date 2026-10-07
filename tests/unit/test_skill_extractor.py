@@ -179,9 +179,6 @@ class TestSkillExtractor:
         # Filename should provide Python hint
         assert any("python" in s.lower() for s in skill_names)
 
-    @pytest.mark.xfail(
-        strict=True, reason="issue #55: skill extractor does not detect JavaScript/TypeScript"
-    )
     def test_javascript_detection(self, extractor):
         """Test JavaScript detection."""
         text = """
