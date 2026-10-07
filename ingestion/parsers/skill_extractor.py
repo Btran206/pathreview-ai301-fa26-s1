@@ -40,6 +40,21 @@ class SkillExtractor:
         "class",
     }
 
+    # Declaration-shaped matches rather than bare keywords, so prose ("let me know")
+    # and Python (`class`, `async`) don't trigger JS/TS detection.
+    JS_DECLARATION_PATTERNS = (
+        r"\b(const|let|var)\s+[\w${}\[\],\s]+=",
+        r"\bfunction\s*\*?\s*\w*\s*\(",
+        r"\bexport\s+(default|const|let|function|class|interface|type|async|enum)\b",
+    )
+
+    TS_PATTERNS = {
+        "interface declaration": r"\binterface\s+\w+(<[^>]*>)?\s*(extends\s+[\w, ]+)?\{",
+        "type alias": r"\b(export\s+)?type\s+\w+(<[^>]*>)?\s*=",
+        "type annotations": r"\w\??\s*:\s*(string|number|boolean|any|void|unknown|never)\b",
+        "generics": r"\b(Promise|Array|Record|Partial|Map|Set)<",
+    }
+
     REACT_INDICATORS = {
         "import React",
         "useState",
@@ -182,10 +197,20 @@ class SkillExtractor:
             js_evidence.append("CommonJS or ES6 imports")
         if "package.json" in text_lower:
             js_evidence.append("package.json found")
+        if any(re.search(p, text) for p in self.JS_DECLARATION_PATTERNS):
+            js_evidence.append("JavaScript/TypeScript declarations (const/let/function/export)")
+
+        ts_signals = [
+            label for label, pattern in self.TS_PATTERNS.items() if re.search(pattern, text)
+        ]
+        if ts_signals:
+            js_evidence.append(f"TypeScript syntax ({', '.join(ts_signals)})")
+        # A single weak TS signal could be prose or config; require two to name TypeScript.
+        is_ts = is_ts_file or len(ts_signals) >= 2
 
         if js_evidence:
             confidence = min(0.95, 0.6 + len(js_evidence) * 0.1)
-            lang = "TypeScript" if is_ts_file else "JavaScript"
+            lang = "TypeScript" if is_ts else "JavaScript"
             skills_dict[lang] = SkillDetection(
                 name=lang,
                 category="Language",
